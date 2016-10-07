@@ -1,5 +1,5 @@
 /**
- * @license Copyright (c) 2003-2014, CKSource - Frederico Knabben. All rights reserved.
+ * @license Copyright (c) 2003-2016, CKSource - Frederico Knabben. All rights reserved.
  * For licensing, see LICENSE.md or http://ckeditor.com/license
  */
 
@@ -7,7 +7,8 @@
 
 ( function() {
 	CKEDITOR.dialog.add( 'link', function( editor ) {
-		var plugin = CKEDITOR.plugins.link;
+		var plugin = CKEDITOR.plugins.link,
+			initialLinkText;
 
 		// Handles the event when the "Target" selection box is changed.
 		var targetChanged = function() {
@@ -111,13 +112,28 @@
 			title: linkLang.title,
 			minWidth: 350,
 			minHeight: 230,
-			contents: [
-				{
+			contents: [ {
 				id: 'info',
 				label: linkLang.info,
 				title: linkLang.info,
-				elements: [
-					{
+				elements: [ {
+					type: 'text',
+					id: 'linkDisplayText',
+					label: linkLang.displayText,
+					setup: function() {
+						this.enable();
+
+						this.setValue( editor.getSelection().getSelectedText() );
+
+						// Keep inner text so that it can be compared in commit function. By obtaining value from getData()
+						// we get value stripped from new line chars which is important when comparing the value later on.
+						initialLinkText = this.getValue();
+					},
+					commit: function( data ) {
+						data.linkText = this.isEnabled() ? this.getValue() : '';
+					}
+				},
+				{
 					id: 'linkType',
 					type: 'select',
 					label: linkLang.type,
@@ -126,7 +142,7 @@
 						[ linkLang.toUrl, 'url' ],
 						[ linkLang.toAnchor, 'anchor' ],
 						[ linkLang.toEmail, 'email' ]
-						],
+					],
 					onChange: linkTypeChanged,
 					setup: function( data ) {
 						this.setValue( data.type || 'url' );
@@ -135,15 +151,13 @@
 						data.type = this.getValue();
 					}
 				},
-					{
+				{
 					type: 'vbox',
 					id: 'urlOptions',
-					children: [
-						{
+					children: [ {
 						type: 'hbox',
 						widths: [ '25%', '75%' ],
-						children: [
-							{
+						children: [ {
 							id: 'protocol',
 							type: 'select',
 							label: commonLang.protocol,
@@ -155,7 +169,7 @@
 								[ 'ftp://\u200E', 'ftp://' ],
 								[ 'news://\u200E', 'news://' ],
 								[ linkLang.other, '' ]
-								],
+							],
 							setup: function( data ) {
 								if ( data.url )
 									this.setValue( data.url.protocol || '' );
@@ -167,7 +181,7 @@
 								data.url.protocol = this.getValue();
 							}
 						},
-							{
+						{
 							type: 'text',
 							id: 'url',
 							label: commonLang.url,
@@ -186,8 +200,9 @@
 								if ( protocol ) {
 									this.setValue( url.substr( protocol[ 0 ].length ) );
 									protocolCmb.setValue( protocol[ 0 ].toLowerCase() );
-								} else if ( urlOnChangeTestOther.test( url ) )
+								} else if ( urlOnChangeTestOther.test( url ) ) {
 									protocolCmb.setValue( '' );
+								}
 
 								this.allowOnChange = true;
 							},
@@ -202,7 +217,7 @@
 									return true;
 
 								if ( !editor.config.linkJavaScriptLinksAllowed && ( /javascript\:/ ).test( this.getValue() ) ) {
-									alert( commonLang.invalidValue );
+									alert( commonLang.invalidValue ); // jshint ignore:line
 									return false;
 								}
 
@@ -230,44 +245,39 @@
 								data.url.url = this.getValue();
 								this.allowOnChange = false;
 							}
-						}
-						],
-						setup: function( data ) {
+						} ],
+						setup: function() {
 							if ( !this.getDialog().getContentElement( 'info', 'linkType' ) )
 								this.getElement().show();
 						}
 					},
-						{
+					{
 						type: 'button',
 						id: 'browse',
 						hidden: 'true',
 						filebrowser: 'info:url',
 						label: commonLang.browseServer
-					}
-					]
+					} ]
 				},
-					{
+				{
 					type: 'vbox',
 					id: 'anchorOptions',
 					width: 260,
 					align: 'center',
 					padding: 0,
-					children: [
-						{
+					children: [ {
 						type: 'fieldset',
 						id: 'selectAnchorText',
 						label: linkLang.selectAnchor,
-						setup: function( data ) {
+						setup: function() {
 							anchors = plugin.getEditorAnchors( editor );
 
 							this.getElement()[ anchors && anchors.length ? 'show' : 'hide' ]();
 						},
-						children: [
-							{
+						children: [ {
 							type: 'hbox',
 							id: 'selectAnchor',
-							children: [
-								{
+							children: [ {
 								type: 'select',
 								id: 'anchorName',
 								'default': '',
@@ -275,7 +285,7 @@
 								style: 'width: 100%;',
 								items: [
 									[ '' ]
-									],
+								],
 								setup: function( data ) {
 									this.clear();
 									this.add( '' );
@@ -301,7 +311,7 @@
 									data.anchor.name = this.getValue();
 								}
 							},
-								{
+							{
 								type: 'select',
 								id: 'anchorId',
 								'default': '',
@@ -309,7 +319,7 @@
 								style: 'width: 100%;',
 								items: [
 									[ '' ]
-									],
+								],
 								setup: function( data ) {
 									this.clear();
 									this.add( '' );
@@ -330,37 +340,33 @@
 
 									data.anchor.id = this.getValue();
 								}
-							}
-							],
-							setup: function( data ) {
+							} ],
+							setup: function() {
 								this.getElement()[ anchors && anchors.length ? 'show' : 'hide' ]();
 							}
-						}
-						]
+						} ]
 					},
-						{
+					{
 						type: 'html',
 						id: 'noAnchors',
 						style: 'text-align: center;',
 						html: '<div role="note" tabIndex="-1">' + CKEDITOR.tools.htmlEncode( linkLang.noAnchors ) + '</div>',
 						// Focus the first element defined in above html.
 						focus: true,
-						setup: function( data ) {
+						setup: function() {
 							this.getElement()[ anchors && anchors.length ? 'hide' : 'show' ]();
 						}
-					}
-					],
-					setup: function( data ) {
+					} ],
+					setup: function() {
 						if ( !this.getDialog().getContentElement( 'info', 'linkType' ) )
 							this.getElement().hide();
 					}
 				},
-					{
+				{
 					type: 'vbox',
 					id: 'emailOptions',
 					padding: 1,
-					children: [
-						{
+					children: [ {
 						type: 'text',
 						id: 'emailAddress',
 						label: linkLang.emailAddress,
@@ -389,7 +395,7 @@
 							data.email.address = this.getValue();
 						}
 					},
-						{
+					{
 						type: 'text',
 						id: 'emailSubject',
 						label: linkLang.emailSubject,
@@ -404,7 +410,7 @@
 							data.email.subject = this.getValue();
 						}
 					},
-						{
+					{
 						type: 'textarea',
 						id: 'emailBody',
 						label: linkLang.emailBody,
@@ -420,26 +426,22 @@
 
 							data.email.body = this.getValue();
 						}
-					}
-					],
-					setup: function( data ) {
+					} ],
+					setup: function() {
 						if ( !this.getDialog().getContentElement( 'info', 'linkType' ) )
 							this.getElement().hide();
 					}
-				}
-				]
+				} ]
 			},
-				{
+			{
 				id: 'target',
 				requiredContent: 'a[target]', // This is not fully correct, because some target option requires JS.
 				label: linkLang.target,
 				title: linkLang.target,
-				elements: [
-					{
+				elements: [ {
 					type: 'hbox',
 					widths: [ '50%', '50%' ],
-					children: [
-						{
+					children: [ {
 						type: 'select',
 						id: 'linkTargetType',
 						label: commonLang.target,
@@ -453,7 +455,7 @@
 							[ commonLang.targetTop, '_top' ],
 							[ commonLang.targetSelf, '_self' ],
 							[ commonLang.targetParent, '_parent' ]
-							],
+						],
 						onChange: targetChanged,
 						setup: function( data ) {
 							if ( data.target )
@@ -467,7 +469,7 @@
 							data.target.type = this.getValue();
 						}
 					},
-						{
+					{
 						type: 'text',
 						id: 'linkTargetName',
 						label: linkLang.targetFrameName,
@@ -480,46 +482,40 @@
 							if ( !data.target )
 								data.target = {};
 
-							data.target.name = this.getValue().replace( /\W/gi, '' );
+							data.target.name = this.getValue().replace( /([^\x00-\x7F]|\s)/gi, '' );
 						}
-					}
-					]
+					} ]
 				},
-					{
+				{
 					type: 'vbox',
 					width: '100%',
 					align: 'center',
 					padding: 2,
 					id: 'popupFeatures',
-					children: [
-						{
+					children: [ {
 						type: 'fieldset',
 						label: linkLang.popupFeatures,
-						children: [
-							{
+						children: [ {
 							type: 'hbox',
-							children: [
-								{
+							children: [ {
 								type: 'checkbox',
 								id: 'resizable',
 								label: linkLang.popupResizable,
 								setup: setupPopupParams,
 								commit: commitPopupParams
 							},
-								{
+							{
 								type: 'checkbox',
 								id: 'status',
 								label: linkLang.popupStatusBar,
 								setup: setupPopupParams,
 								commit: commitPopupParams
 
-							}
-							]
+							} ]
 						},
-							{
+						{
 							type: 'hbox',
-							children: [
-								{
+							children: [ {
 								type: 'checkbox',
 								id: 'location',
 								label: linkLang.popupLocationBar,
@@ -527,20 +523,18 @@
 								commit: commitPopupParams
 
 							},
-								{
+							{
 								type: 'checkbox',
 								id: 'toolbar',
 								label: linkLang.popupToolbar,
 								setup: setupPopupParams,
 								commit: commitPopupParams
 
-							}
-							]
+							} ]
 						},
-							{
+						{
 							type: 'hbox',
-							children: [
-								{
+							children: [ {
 								type: 'checkbox',
 								id: 'menubar',
 								label: linkLang.popupMenuBar,
@@ -548,20 +542,18 @@
 								commit: commitPopupParams
 
 							},
-								{
+							{
 								type: 'checkbox',
 								id: 'fullscreen',
 								label: linkLang.popupFullScreen,
 								setup: setupPopupParams,
 								commit: commitPopupParams
 
-							}
-							]
+							} ]
 						},
-							{
+						{
 							type: 'hbox',
-							children: [
-								{
+							children: [ {
 								type: 'checkbox',
 								id: 'scrollbars',
 								label: linkLang.popupScrollBars,
@@ -569,20 +561,18 @@
 								commit: commitPopupParams
 
 							},
-								{
+							{
 								type: 'checkbox',
 								id: 'dependent',
 								label: linkLang.popupDependent,
 								setup: setupPopupParams,
 								commit: commitPopupParams
 
-							}
-							]
+							} ]
 						},
-							{
+						{
 							type: 'hbox',
-							children: [
-								{
+							children: [ {
 								type: 'text',
 								widths: [ '50%', '50%' ],
 								labelLayout: 'horizontal',
@@ -592,7 +582,7 @@
 								commit: commitPopupParams
 
 							},
-								{
+							{
 								type: 'text',
 								labelLayout: 'horizontal',
 								widths: [ '50%', '50%' ],
@@ -601,13 +591,11 @@
 								setup: setupPopupParams,
 								commit: commitPopupParams
 
-							}
-							]
+							} ]
 						},
-							{
+						{
 							type: 'hbox',
-							children: [
-								{
+							children: [ {
 								type: 'text',
 								labelLayout: 'horizontal',
 								widths: [ '50%', '50%' ],
@@ -617,7 +605,7 @@
 								commit: commitPopupParams
 
 							},
-								{
+							{
 								type: 'text',
 								labelLayout: 'horizontal',
 								label: linkLang.popupTop,
@@ -626,52 +614,43 @@
 								setup: setupPopupParams,
 								commit: commitPopupParams
 
-							}
-							]
-						}
-						]
-					}
-					]
-				}
-				]
+							} ]
+						} ]
+					} ]
+				} ]
 			},
-				{
+			{
 				id: 'upload',
 				label: linkLang.upload,
 				title: linkLang.upload,
 				hidden: true,
 				filebrowser: 'uploadButton',
-				elements: [
-					{
+				elements: [ {
 					type: 'file',
 					id: 'upload',
 					label: commonLang.upload,
 					style: 'height:40px',
 					size: 29
 				},
-					{
+				{
 					type: 'fileButton',
 					id: 'uploadButton',
 					label: commonLang.uploadSubmit,
 					filebrowser: 'info:url',
 					'for': [ 'upload', 'upload' ]
-				}
-				]
+				} ]
 			},
-				{
+			{
 				id: 'advanced',
 				label: linkLang.advanced,
 				title: linkLang.advanced,
-				elements: [
-					{
+				elements: [ {
 					type: 'vbox',
 					padding: 1,
-					children: [
-						{
+					children: [ {
 						type: 'hbox',
 						widths: [ '45%', '35%', '20%' ],
-						children: [
-							{
+						children: [ {
 							type: 'text',
 							id: 'advId',
 							requiredContent: 'a[id]',
@@ -679,7 +658,7 @@
 							setup: setupAdvParams,
 							commit: commitAdvParams
 						},
-							{
+						{
 							type: 'select',
 							id: 'advLangDir',
 							requiredContent: 'a[dir]',
@@ -690,11 +669,11 @@
 								[ commonLang.notSet, '' ],
 								[ linkLang.langDirLTR, 'ltr' ],
 								[ linkLang.langDirRTL, 'rtl' ]
-								],
+							],
 							setup: setupAdvParams,
 							commit: commitAdvParams
 						},
-							{
+						{
 							type: 'text',
 							id: 'advAccessKey',
 							requiredContent: 'a[accesskey]',
@@ -704,14 +683,12 @@
 							setup: setupAdvParams,
 							commit: commitAdvParams
 
-						}
-						]
+						} ]
 					},
-						{
+					{
 						type: 'hbox',
 						widths: [ '45%', '35%', '20%' ],
-						children: [
-							{
+						children: [ {
 							type: 'text',
 							label: linkLang.name,
 							id: 'advName',
@@ -720,7 +697,7 @@
 							commit: commitAdvParams
 
 						},
-							{
+						{
 							type: 'text',
 							label: linkLang.langCode,
 							id: 'advLangCode',
@@ -731,7 +708,7 @@
 							commit: commitAdvParams
 
 						},
-							{
+						{
 							type: 'text',
 							label: linkLang.tabIndex,
 							id: 'advTabIndex',
@@ -741,20 +718,16 @@
 							setup: setupAdvParams,
 							commit: commitAdvParams
 
-						}
-						]
-					}
-					]
+						} ]
+					} ]
 				},
-					{
+				{
 					type: 'vbox',
 					padding: 1,
-					children: [
-						{
+					children: [ {
 						type: 'hbox',
 						widths: [ '45%', '55%' ],
-						children: [
-							{
+						children: [ {
 							type: 'text',
 							label: linkLang.advisoryTitle,
 							requiredContent: 'a[title]',
@@ -764,7 +737,7 @@
 							commit: commitAdvParams
 
 						},
-							{
+						{
 							type: 'text',
 							label: linkLang.advisoryContentType,
 							requiredContent: 'a[type]',
@@ -773,14 +746,12 @@
 							setup: setupAdvParams,
 							commit: commitAdvParams
 
-						}
-						]
+						} ]
 					},
-						{
+					{
 						type: 'hbox',
 						widths: [ '45%', '55%' ],
-						children: [
-							{
+						children: [ {
 							type: 'text',
 							label: linkLang.cssClasses,
 							requiredContent: 'a(cke-xyz)', // Random text like 'xyz' will check if all are allowed.
@@ -790,7 +761,7 @@
 							commit: commitAdvParams
 
 						},
-							{
+						{
 							type: 'text',
 							label: linkLang.charset,
 							requiredContent: 'a[charset]',
@@ -799,14 +770,12 @@
 							setup: setupAdvParams,
 							commit: commitAdvParams
 
-						}
-						]
+						} ]
 					},
-						{
+					{
 						type: 'hbox',
 						widths: [ '45%', '55%' ],
-						children: [
-							{
+						children: [ {
 							type: 'text',
 							label: linkLang.rel,
 							requiredContent: 'a[rel]',
@@ -815,7 +784,7 @@
 							setup: setupAdvParams,
 							commit: commitAdvParams
 						},
-							{
+						{
 							type: 'text',
 							label: linkLang.styles,
 							requiredContent: 'a{cke-xyz}', // Random text like 'xyz' will check if all are allowed.
@@ -824,27 +793,35 @@
 							validate: CKEDITOR.dialog.validate.inlineStyle( editor.lang.common.invalidInlineStyle ),
 							setup: setupAdvParams,
 							commit: commitAdvParams
-						}
-						]
-					}
-					]
-				}
-				]
-			}
-			],
+						} ]
+					} ]
+				} ]
+			} ],
 			onShow: function() {
 				var editor = this.getParentEditor(),
 					selection = editor.getSelection(),
+					selectedElement = selection.getSelectedElement(),
+					displayTextField = this.getContentElement( 'info', 'linkDisplayText' ).getElement().getParent().getParent(),
 					element = null;
 
 				// Fill in all the relevant fields if there's already one link selected.
 				if ( ( element = plugin.getSelectedLink( editor ) ) && element.hasAttribute( 'href' ) ) {
 					// Don't change selection if some element is already selected.
 					// For example - don't destroy fake selection.
-					if ( !selection.getSelectedElement() )
+					if ( !selectedElement ) {
 						selection.selectElement( element );
-				} else
+						selectedElement = element;
+					}
+				} else {
 					element = null;
+				}
+
+				// Here we'll decide whether or not we want to show Display Text field.
+				if ( plugin.showDisplayTextForElement( selectedElement, editor ) ) {
+					displayTextField.show();
+				} else {
+					displayTextField.hide();
+				}
 
 				var data = plugin.parseLinkAttributes( editor, element );
 
@@ -860,18 +837,39 @@
 				this.commitContent( data );
 
 				var selection = editor.getSelection(),
-					attributes = plugin.getLinkAttributes( editor, data );
+					attributes = plugin.getLinkAttributes( editor, data ),
+					bm,
+					nestedLinks;
 
 				if ( !this._.selectedElement ) {
-					var range = selection.getRanges()[ 0 ];
+					var range = selection.getRanges()[ 0 ],
+						text;
 
 					// Use link URL as text with a collapsed cursor.
 					if ( range.collapsed ) {
 						// Short mailto link text view (#5736).
-						var text = new CKEDITOR.dom.text( data.type == 'email' ?
-							data.email.address : attributes.set[ 'data-cke-saved-href' ], editor.document );
+						text = new CKEDITOR.dom.text( data.linkText || ( data.type == 'email' ?
+							data.email.address : attributes.set[ 'data-cke-saved-href' ] ), editor.document );
 						range.insertNode( text );
 						range.selectNodeContents( text );
+					} else if ( initialLinkText !== data.linkText ) {
+						text = new CKEDITOR.dom.text( data.linkText, editor.document );
+
+						// Shrink range to preserve block element.
+						range.shrink( CKEDITOR.SHRINK_TEXT );
+
+						// Use extractHtmlFromRange to remove markup within the selection. Also this method is a little
+						// smarter than range#deleteContents as it plays better e.g. with table cells.
+						editor.editable().extractHtmlFromRange( range );
+						
+						range.insertNode( text );
+					}
+
+					// Editable links nested within current range should be removed, so that the link is applied to whole selection.
+					nestedLinks = range._find( 'a' );
+
+					for	( var i = 0; i < nestedLinks.length; i++ ) {
+						nestedLinks[ i ].remove( true );
 					}
 
 					// Apply style.
@@ -887,17 +885,23 @@
 					// We're only editing an existing link, so just overwrite the attributes.
 					var element = this._.selectedElement,
 						href = element.data( 'cke-saved-href' ),
-						textView = element.getHtml();
+						textView = element.getHtml(),
+						newText;
 
 					element.setAttributes( attributes.set );
 					element.removeAttributes( attributes.removed );
 
-					// Update text view when user changes protocol (#4612).
-					if ( href == textView || data.type == 'email' && textView.indexOf( '@' ) != -1 ) {
+					if ( data.linkText && initialLinkText != data.linkText ) {
+						// Display text has been changed.
+						newText = data.linkText;
+					} else if ( href == textView || data.type == 'email' && textView.indexOf( '@' ) != -1 ) {
+						// Update text view when user changes protocol (#4612).
 						// Short mailto link text view (#5736).
-						element.setHtml( data.type == 'email' ?
-							data.email.address : attributes.set[ 'data-cke-saved-href' ] );
+						newText = data.type == 'email' ? data.email.address : attributes.set[ 'data-cke-saved-href' ];
+					}
 
+					if ( newText ) {
+						element.setText( newText );
 						// We changed the content, so need to select it again.
 						selection.selectElement( element );
 					}
@@ -925,7 +929,7 @@
 		};
 	} );
 } )();
-
+// jscs:disable maximumLineLength
 /**
  * The e-mail address anti-spam protection option. The protection will be
  * applied when creating or modifying e-mail links through the editor interface.

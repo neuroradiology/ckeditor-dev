@@ -1,5 +1,5 @@
-﻿/**
- * @license Copyright (c) 2003-2014, CKSource - Frederico Knabben. All rights reserved.
+/**
+ * @license Copyright (c) 2003-2016, CKSource - Frederico Knabben. All rights reserved.
  * For licensing, see LICENSE.md or http://ckeditor.com/license
  */
 
@@ -114,7 +114,7 @@ CKEDITOR.htmlWriter = CKEDITOR.tools.createClass( {
 		 * @param {Object} attributes The attributes defined for this tag. The
 		 * attributes could be used to inspect the tag.
 		 */
-		openTag: function( tagName, attributes ) {
+		openTag: function( tagName ) {
 			var rules = this._.rules[ tagName ];
 
 			if ( this._.afterCloser && rules && rules.needsSpace && this._.needsSpace )
@@ -289,6 +289,7 @@ CKEDITOR.htmlWriter = CKEDITOR.tools.createClass( {
 			this._.indentation = '';
 			this._.afterCloser = 0;
 			this._.inPre = 0;
+			this._.needsSpace = 0;
 		},
 
 		/**

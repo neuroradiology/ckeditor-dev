@@ -1,5 +1,5 @@
-﻿/**
- * @license Copyright (c) 2003-2014, CKSource - Frederico Knabben. All rights reserved.
+/**
+ * @license Copyright (c) 2003-2016, CKSource - Frederico Knabben. All rights reserved.
  * For licensing, see LICENSE.md or http://ckeditor.com/license
  */
 
@@ -115,11 +115,12 @@ CKEDITOR.scriptLoader = ( function() {
 					var script = new CKEDITOR.dom.element( 'script' );
 					script.setAttributes( {
 						type: 'text/javascript',
-						src: url } );
+						src: url
+					} );
 
 					if ( callback ) {
-						if ( CKEDITOR.env.ie && CKEDITOR.env.version < 11 ) {
-							// FIXME: For IE, we are not able to return false on error (like 404).
+						// The onload or onerror event does not fire in IE8 and IE9 Quirks Mode (#14849).
+						if ( CKEDITOR.env.ie && ( CKEDITOR.env.version <= 8 || CKEDITOR.env.ie9Compat ) ) {
 							script.$.onreadystatechange = function() {
 								if ( script.$.readyState == 'loaded' || script.$.readyState == 'complete' ) {
 									script.$.onreadystatechange = null;
@@ -135,7 +136,6 @@ CKEDITOR.scriptLoader = ( function() {
 								}, 0 );
 							};
 
-							// FIXME: Opera and Safari will not fire onerror.
 							script.$.onerror = function() {
 								onLoad( url, false );
 							};

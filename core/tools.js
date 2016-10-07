@@ -1,5 +1,5 @@
-﻿/**
- * @license Copyright (c) 2003-2014, CKSource - Frederico Knabben. All rights reserved.
+/**
+ * @license Copyright (c) 2003-2016, CKSource - Frederico Knabben. All rights reserved.
  * For licensing, see LICENSE.md or http://ckeditor.com/license
  */
 
@@ -19,11 +19,26 @@
 		gtRegex = />/g,
 		ltRegex = /</g,
 		quoteRegex = /"/g,
+		tokenCharset = 'abcdefghijklmnopqrstuvwxyz0123456789',
+		TOKEN_COOKIE_NAME = 'ckCsrfToken',
+		TOKEN_LENGTH = 40,
 
-		ampEscRegex = /&amp;/g,
-		gtEscRegex = /&gt;/g,
-		ltEscRegex = /&lt;/g,
-		quoteEscRegex = /&quot;/g;
+		allEscRegex = /&(lt|gt|amp|quot|nbsp|shy|#\d{1,5});/g,
+		namedEntities = {
+			lt: '<',
+			gt: '>',
+			amp: '&',
+			quot: '"',
+			nbsp: '\u00a0',
+			shy: '\u00ad'
+		},
+		allEscDecode = function( match, code ) {
+			if ( code[ 0 ] == '#' ) {
+				return String.fromCharCode( parseInt( code.slice( 1 ), 10 ) );
+			} else {
+				return namedEntities[ code ];
+			}
+		};
 
 	CKEDITOR.on( 'reset', function() {
 		functions = [];
@@ -69,6 +84,26 @@
 		},
 
 		/**
+		 * Finds the index of the first element in an array for which the `compareFunction` returns `true`.
+		 *
+		 *		CKEDITOR.tools.getIndex( [ 1, 2, 4, 3, 5 ], function( el ) {
+		 *			return el >= 3;
+		 *		} ); // 2
+		 *
+		 * @since 4.5
+		 * @param {Array} array Array to search in.
+		 * @param {Function} compareFunction Compare function.
+		 * @returns {Number} The index of the first matching element or `-1` if none matches.
+		 */
+		getIndex: function( arr, compareFunction ) {
+			for ( var i = 0; i < arr.length; ++i ) {
+				if ( compareFunction( arr[ i ] ) )
+					return i;
+			}
+			return -1;
+		},
+
+		/**
 		 * Creates a deep copy of an object.
 		 *
 		 * **Note**: Recursive references are not supported.
@@ -106,7 +141,7 @@
 			}
 
 			// "Static" types.
-			if ( obj === null || ( typeof( obj ) != 'object' ) || ( obj instanceof String ) || ( obj instanceof Number ) || ( obj instanceof Boolean ) || ( obj instanceof Date ) || ( obj instanceof RegExp ) )
+			if ( obj === null || ( typeof obj != 'object' ) || ( obj instanceof String ) || ( obj instanceof Number ) || ( obj instanceof Boolean ) || ( obj instanceof Date ) || ( obj instanceof RegExp ) )
 				return obj;
 
 			// DOM objects and window.
@@ -168,9 +203,9 @@
 			var argsLength = arguments.length,
 				overwrite, propertiesList;
 
-			if ( typeof( overwrite = arguments[ argsLength - 1 ] ) == 'boolean' )
+			if ( typeof ( overwrite = arguments[ argsLength - 1 ] ) == 'boolean' )
 				argsLength--;
-			else if ( typeof( overwrite = arguments[ argsLength - 2 ] ) == 'boolean' ) {
+			else if ( typeof ( overwrite = arguments[ argsLength - 2 ] ) == 'boolean' ) {
 				propertiesList = arguments[ argsLength - 1 ];
 				argsLength -= 2;
 			}
@@ -178,7 +213,7 @@
 				var source = arguments[ i ];
 				for ( var propertyName in source ) {
 					// Only copy existed fields if in overwrite mode.
-					if ( overwrite === true || target[ propertyName ] == undefined ) {
+					if ( overwrite === true || target[ propertyName ] == null ) {
 						// Only copy  specified fields if list is provided.
 						if ( !propertiesList || ( propertyName in propertiesList ) )
 							target[ propertyName ] = source[ propertyName ];
@@ -334,19 +369,32 @@
 		 * @returns {String} The encoded string.
 		 */
 		htmlEncode: function( text ) {
+			// Backwards compatibility - accept also non-string values (casting is done below).
+			// Since 4.4.8 we return empty string for null and undefined because these values make no sense.
+			if ( text === undefined || text === null ) {
+				return '';
+			}
+
 			return String( text ).replace( ampRegex, '&amp;' ).replace( gtRegex, '&gt;' ).replace( ltRegex, '&lt;' );
 		},
 
 		/**
-		 * Decodes HTML entities.
+		 * Decodes HTML entities that browsers tend to encode when used in text nodes.
 		 *
 		 *		alert( CKEDITOR.tools.htmlDecode( '&lt;a &amp; b &gt;' ) ); // '<a & b >'
+		 *
+		 * Read more about chosen entities in the [research](http://dev.ckeditor.com/ticket/13105#comment:8).
 		 *
 		 * @param {String} The string to be decoded.
 		 * @returns {String} The decoded string.
 		 */
 		htmlDecode: function( text ) {
-			return text.replace( ampEscRegex, '&' ).replace( gtEscRegex, '>' ).replace( ltEscRegex, '<' );
+			// See:
+			// * http://dev.ckeditor.com/ticket/13105#comment:8 and comment:9,
+			// * http://jsperf.com/wth-is-going-on-with-jsperf JSPerf has some serious problems, but you can observe
+			// that combined regexp tends to be quicker (except on V8). It will also not be prone to fail on '&amp;lt;'
+			// (see http://dev.ckeditor.com/ticket/13105#DXWTF:CKEDITOR.tools.htmlEnDecodeAttr).
+			return text.replace( allEscRegex, allEscDecode );
 		},
 
 		/**
@@ -358,21 +406,72 @@
 		 * @returns {String} The encoded value.
 		 */
 		htmlEncodeAttr: function( text ) {
-			return text.replace( quoteRegex, '&quot;' ).replace( ltRegex, '&lt;' ).replace( gtRegex, '&gt;' );
+			return CKEDITOR.tools.htmlEncode( text ).replace( quoteRegex, '&quot;' );
 		},
 
 		/**
-		 * Replace HTML entities previously encoded by
-		 * {@link #htmlEncodeAttr htmlEncodeAttr} back to their plain character
-		 * representation.
+		 * Decodes HTML entities that browsers tend to encode when used in attributes.
 		 *
 		 *		alert( CKEDITOR.tools.htmlDecodeAttr( '&lt;a &quot; b&gt;' ) ); // '<a " b>'
+		 *
+		 * Since CKEditor 4.5 this method simply executes {@link #htmlDecode} which covers
+		 * all necessary entities.
 		 *
 		 * @param {String} text The text to be decoded.
 		 * @returns {String} The decoded text.
 		 */
 		htmlDecodeAttr: function( text ) {
-			return text.replace( quoteEscRegex, '"' ).replace( ltEscRegex, '<' ).replace( gtEscRegex, '>' );
+			return CKEDITOR.tools.htmlDecode( text );
+		},
+
+		/**
+		 * Transforms text to valid HTML: creates paragraphs, replaces tabs with non-breaking spaces etc.
+		 *
+		 * @since 4.5
+		 * @param {String} text Text to transform.
+		 * @param {Number} enterMode Editor {@link CKEDITOR.config#enterMode Enter mode}.
+		 * @returns {String} HTML generated from the text.
+		 */
+		transformPlainTextToHtml: function( text, enterMode ) {
+			var isEnterBrMode = enterMode == CKEDITOR.ENTER_BR,
+				// CRLF -> LF
+				html = this.htmlEncode( text.replace( /\r\n/g, '\n' ) );
+
+			// Tab -> &nbsp x 4;
+			html = html.replace( /\t/g, '&nbsp;&nbsp; &nbsp;' );
+
+			var paragraphTag = enterMode == CKEDITOR.ENTER_P ? 'p' : 'div';
+
+			// Two line-breaks create one paragraphing block.
+			if ( !isEnterBrMode ) {
+				var duoLF = /\n{2}/g;
+				if ( duoLF.test( html ) ) {
+					var openTag = '<' + paragraphTag + '>', endTag = '</' + paragraphTag + '>';
+					html = openTag + html.replace( duoLF, function() {
+						return endTag + openTag;
+					} ) + endTag;
+				}
+			}
+
+			// One <br> per line-break.
+			html = html.replace( /\n/g, '<br>' );
+
+			// Compensate padding <br> at the end of block, avoid loosing them during insertion.
+			if ( !isEnterBrMode ) {
+				html = html.replace( new RegExp( '<br>(?=</' + paragraphTag + '>)' ), function( match ) {
+					return CKEDITOR.tools.repeat( match, 2 );
+				} );
+			}
+
+			// Preserve spaces at the ends, so they won't be lost after insertion (merged with adjacent ones).
+			html = html.replace( /^ | $/g, '&nbsp;' );
+
+			// Finally, preserve whitespaces that are to be lost.
+			html = html.replace( /(>|\s) /g, function( match, before ) {
+				return before + '&nbsp;';
+			} ).replace( / (?=<)/g, '&nbsp;' );
+
+			return html;
 		},
 
 		/**
@@ -406,6 +505,21 @@
 		},
 
 		/**
+		 * Gets a universally unique ID. It returns a random string
+		 * compliant with ISO/IEC 11578:1996, without dashes, with the "e" prefix to
+		 * make sure that the ID does not start with a number.
+		 *
+		 * @returns {String} A global unique ID.
+		 */
+		getUniqueId: function() {
+			var uuid = 'e'; // Make sure that id does not start with number.
+			for ( var i = 0; i < 8; i++ ) {
+				uuid += Math.floor( ( 1 + Math.random() ) * 0x10000 ).toString( 16 ).substring( 1 );
+			}
+			return uuid;
+		},
+
+		/**
 		 * Creates a function override.
 		 *
 		 *		var obj = {
@@ -433,14 +547,14 @@
 		},
 
 		/**
-		 * Executes a function after specified delay.
+		 * Executes a function after a specified delay.
 		 *
 		 *		CKEDITOR.tools.setTimeout( function() {
 		 *			alert( 'Executed after 2 seconds' );
 		 *		}, 2000 );
 		 *
 		 * @param {Function} func The function to be executed.
-		 * @param {Number} [milliseconds=0] The amount of time (in millisecods) to wait
+		 * @param {Number} [milliseconds=0] The amount of time (in milliseconds) to wait
 		 * to fire the function execution.
 		 * @param {Object} [scope=window] The object to store the function execution scope
 		 * (the `this` object).
@@ -867,6 +981,23 @@
 		},
 
 		/**
+		 * Normalizes hexadecimal notation so that the color string is always 6 characters long and lowercase.
+		 *
+		 * @param {String} styleText The style data (or just a string containing hex colors) to be converted.
+		 * @returns {String} The style data with hex colors normalized.
+		 */
+		normalizeHex: function( styleText ) {
+			return styleText.replace( /#(([0-9a-f]{3}){1,2})($|;|\s+)/gi, function( match, hexColor, hexColorPart, separator ) {
+				var normalizedHexColor = hexColor.toLowerCase();
+				if ( normalizedHexColor.length == 3 ) {
+					var parts = normalizedHexColor.split( '' );
+					normalizedHexColor = [ parts[ 0 ], parts[ 0 ], parts[ 1 ], parts[ 1 ], parts[ 2 ], parts[ 2 ] ].join( '' );
+				}
+				return '#' + normalizedHexColor + separator;
+			} );
+		},
+
+		/**
 		 * Turns inline style text properties into one hash.
 		 *
 		 * @param {String} styleText The style data to be parsed.
@@ -882,8 +1013,12 @@
 				// Injects the style in a temporary span object, so the browser parses it,
 				// retrieving its final format.
 				var temp = new CKEDITOR.dom.element( 'span' );
-				temp.setAttribute( 'style', styleText );
-				styleText = CKEDITOR.tools.convertRgbToHex( temp.getAttribute( 'style' ) || '' );
+				styleText = temp.setAttribute( 'style', styleText ).getAttribute( 'style' ) || '';
+			}
+
+			// Normalize colors.
+			if ( styleText ) {
+				styleText = CKEDITOR.tools.normalizeHex( CKEDITOR.tools.convertRgbToHex( styleText ) );
 			}
 
 			// IE will leave a single semicolon when failed to parse the style text. (#3891)
@@ -893,10 +1028,9 @@
 			styleText.replace( /&quot;/g, '"' ).replace( /\s*([^:;\s]+)\s*:\s*([^;]+)\s*(?=;|$)/g, function( match, name, value ) {
 				if ( normalize ) {
 					name = name.toLowerCase();
-					// Normalize font-family property, ignore quotes and being case insensitive. (#7322)
-					// http://www.w3.org/TR/css3-fonts/#font-family-the-font-family-property
+					// Drop extra whitespacing from font-family.
 					if ( name == 'font-family' )
-						value = value.toLowerCase().replace( /["']/g, '' ).replace( /\s*,\s*/g, ',' );
+						value = value.replace( /\s*,\s*/g, ',' );
 					value = CKEDITOR.tools.trim( value );
 				}
 
@@ -1079,19 +1213,24 @@
 		 * @since 4.2.1
 		 * @param {Number} minInterval Minimum interval between `output` calls in milliseconds.
 		 * @param {Function} output Function that will be executed as `output`.
+		 * @param {Object} [scopeObj] The object used to scope the listener call (the `this` object).
 		 * @returns {Object}
 		 * @returns {Function} return.input Buffer's input method.
 		 * @returns {Function} return.reset Resets buffered events &mdash; `output` will not be executed
 		 * until next `input` is triggered.
 		 */
-		eventsBuffer: function( minInterval, output ) {
+		eventsBuffer: function( minInterval, output, scopeObj ) {
 			var scheduled,
 				lastOutput = 0;
 
 			function triggerOutput() {
 				lastOutput = ( new Date() ).getTime();
 				scheduled = false;
-				output();
+				if ( scopeObj ) {
+					output.call( scopeObj );
+				} else {
+					output();
+				}
 			}
 
 			return {
@@ -1130,7 +1269,7 @@
 		 * @param {Boolean} [withAppend] Whether to append created elements to the `doc`.
 		 */
 		enableHtml5Elements: function( doc, withAppend ) {
-			var els = 'abbr,article,aside,audio,bdi,canvas,data,datalist,details,figcaption,figure,footer,header,hgroup,mark,meter,nav,output,progress,section,summary,time,video'.split( ',' ),
+			var els = 'abbr,article,aside,audio,bdi,canvas,data,datalist,details,figcaption,figure,footer,header,hgroup,main,mark,meter,nav,output,progress,section,summary,time,video'.split( ',' ),
 				i = els.length,
 				el;
 
@@ -1179,8 +1318,115 @@
 		 * @since 4.4
 		 * @readonly
 		 */
-		transparentImageData: 'data:image/gif;base64,R0lGODlhAQABAPABAP///wAAACH5BAEKAAAALAAAAAABAAEAAAICRAEAOw=='
+		transparentImageData: 'data:image/gif;base64,R0lGODlhAQABAPABAP///wAAACH5BAEKAAAALAAAAAABAAEAAAICRAEAOw==',
+
+
+		/**
+		 * Returns the value of the cookie with a given name or `null` if the cookie is not found.
+		 *
+		 * @since 4.5.6
+		 * @param {String} name
+		 * @returns {String}
+		 */
+		getCookie: function( name ) {
+			name = name.toLowerCase();
+			var parts = document.cookie.split( ';' );
+			var pair, key;
+
+			for ( var i = 0; i < parts.length; i++ ) {
+				pair = parts[ i ].split( '=' );
+				key = decodeURIComponent( CKEDITOR.tools.trim( pair[ 0 ] ).toLowerCase() );
+
+				if ( key === name ) {
+					return decodeURIComponent( pair.length > 1 ? pair[ 1 ] : '' );
+				}
+			}
+
+			return null;
+		},
+
+		/**
+		 * Sets the value of the cookie with a given name.
+		 *
+		 * @since 4.5.6
+		 * @param {String} name
+		 * @param {String} value
+		 */
+		setCookie: function( name, value ) {
+			document.cookie = encodeURIComponent( name ) + '=' + encodeURIComponent( value ) + ';path=/';
+		},
+
+		/**
+		 * Returns the CSRF token value. The value is a hash stored in `document.cookie`
+		 * under the `ckCsrfToken` key. The CSRF token can be used to secure the communication
+		 * between the web browser and the server, i.e. for the file upload feature in the editor.
+		 *
+		 * @since 4.5.6
+		 * @returns {String}
+		 */
+		getCsrfToken: function() {
+			var token = CKEDITOR.tools.getCookie( TOKEN_COOKIE_NAME );
+
+			if ( !token || token.length != TOKEN_LENGTH ) {
+				token = generateToken( TOKEN_LENGTH );
+				CKEDITOR.tools.setCookie( TOKEN_COOKIE_NAME, token );
+			}
+
+			return token;
+		},
+
+		/**
+		 * Returns an escaped CSS selector. `CSS.escape()` is used if defined, leading digit is escaped otherwise.
+		 *
+		 * @since 4.5.10
+		 * @param {String} selector A CSS selector to escape.
+		 * @returns {String} An escaped selector.
+		 */
+		escapeCss: function( selector ) {
+			// Invalid input.
+			if ( !selector ) {
+				return '';
+			}
+
+			// CSS.escape() can be used.
+			if ( window.CSS && CSS.escape ) {
+				return CSS.escape( selector );
+			}
+
+			// Simple leading digit escape.
+			if ( !isNaN( parseInt( selector.charAt( 0 ), 10 ) ) ) {
+				return '\\3' + selector.charAt( 0 ) + ' ' + selector.substring( 1, selector.length );
+			}
+
+			return selector;
+		}
 	};
+
+	// Generates a CSRF token with a given length.
+	//
+	// @since 4.5.6
+	// @param {Number} length
+	// @returns {string}
+	function generateToken( length ) {
+		var randValues = [];
+		var result = '';
+
+		if ( window.crypto && window.crypto.getRandomValues ) {
+			randValues = new Uint8Array( length );
+			window.crypto.getRandomValues( randValues );
+		} else {
+			for ( var i = 0; i < length; i++ ) {
+				randValues.push( Math.floor( Math.random() * 256 ) );
+			}
+		}
+
+		for ( var j = 0; j < randValues.length; j++ ) {
+			var character = tokenCharset.charAt( randValues[ j ] % tokenCharset.length );
+			result += Math.random() > 0.5 ? character.toUpperCase() : character;
+		}
+
+		return result;
+	}
 } )();
 
 // PACKAGER_RENAME( CKEDITOR.tools )

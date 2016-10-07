@@ -1,5 +1,5 @@
-﻿/**
- * @license Copyright (c) 2003-2014, CKSource - Frederico Knabben. All rights reserved.
+/**
+ * @license Copyright (c) 2003-2016, CKSource - Frederico Knabben. All rights reserved.
  * For licensing, see LICENSE.md or http://ckeditor.com/license
  */
 
@@ -19,8 +19,8 @@
  */
 CKEDITOR.lang[ 'pt' ] = {
 	// ARIA description.
-	editor: 'Rich Text Editor',
-	editorPanel: 'Painel do Rich Text Editor',
+	editor: 'Editor de texto enriquecido',
+	editorPanel: 'Painel do editor de texto enriquecido',
 
 	// Common messages and labels.
 	common: {
@@ -28,32 +28,32 @@ CKEDITOR.lang[ 'pt' ] = {
 		// of reading non-English words. So be careful while translating it.
 		editorHelp: 'Pressione ALT+0 para ajuda',
 
-		browseServer: 'Explorar Servidor',
+		browseServer: 'Navegar no servidor',
 		url: 'URL',
 		protocol: 'Protocolo',
-		upload: 'Enviar',
-		uploadSubmit: 'Enviá-lo para o Servidor',
+		upload: 'Carregar',
+		uploadSubmit: 'Enviar para o servidor',
 		image: 'Imagem',
 		flash: 'Flash',
 		form: 'Formulário',
-		checkbox: 'Caixa de Seleção',
+		checkbox: 'Caixa de verificação',
 		radio: 'Botão',
-		textField: 'Campo do Texto',
-		textarea: 'Área do Texto',
-		hiddenField: 'Campo Ocultado',
+		textField: 'Campo de texto',
+		textarea: 'Área de texto',
+		hiddenField: 'Campo oculto',
 		button: 'Botão',
-		select: 'Campo da Seleção',
-		imageButton: 'Botão da Imagem',
+		select: 'Campo de seleção',
+		imageButton: 'Botão da imagem',
 		notSet: '<Não definido>',
-		id: 'Id.',
+		id: 'ID',
 		name: 'Nome',
-		langDir: 'Direção do Idioma',
+		langDir: 'Direção do idioma',
 		langDirLtr: 'Esquerda para a Direita (EPD)',
 		langDirRtl: 'Direita para a Esquerda (DPE)',
-		langCode: 'Código do Idioma',
-		longDescr: 'Descrição Completa do URL',
-		cssClass: 'Classes de Estilo das Folhas',
-		advisoryTitle: 'Título Consultivo',
+		langCode: 'Código do idioma',
+		longDescr: 'Descrição completa do URL',
+		cssClass: 'Classes de estilo das folhas',
+		advisoryTitle: 'Título consultivo',
 		cssStyle: 'Estilo',
 		ok: 'CONFIRMAR',
 		cancel: 'Cancelar',
@@ -67,14 +67,14 @@ CKEDITOR.lang[ 'pt' ] = {
 		confirmCancel: 'Foram alteradas algumas das opções. Tem a certeza que deseja fechar a janela?',
 		options: 'Opções',
 		target: 'Destino',
-		targetNew: 'Nova Janela (_blank)',
-		targetTop: 'Janela Superior (_top)',
-		targetSelf: 'Mesma Janela (_self)',
-		targetParent: 'Janela Parente (_parent)',
+		targetNew: 'Nova janela (_blank)',
+		targetTop: 'Janela superior (_top)',
+		targetSelf: 'Mesma janela (_self)',
+		targetParent: 'Janela dependente (_parent)',
 		langDirLTR: 'Esquerda para a Direita (EPD)',
 		langDirRTL: 'Direita para a Esquerda (DPE)',
 		styles: 'Estilo',
-		cssClasses: 'Classes de Estilo das Folhas',
+		cssClasses: 'Classes de folhas de estilo',
 		width: 'Largura',
 		height: 'Altura',
 		align: 'Alinhamento',
@@ -85,7 +85,7 @@ CKEDITOR.lang[ 'pt' ] = {
 		alignTop: 'Topo',
 		alignMiddle: 'Centro',
 		alignBottom: 'Base',
-		alignNone: 'None', // MISSING
+		alignNone: 'Nenhum',
 		invalidValue	: 'Valor inválido.',
 		invalidHeight: 'A altura deve ser um número.',
 		invalidWidth: 'A largura deve ser um número. ',
